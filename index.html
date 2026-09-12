@@ -293,7 +293,7 @@
   </div>
 </div>
 
-<script>
+ <script>
 (function(){
   const stage = document.getElementById('stage');
   const lanesEl = document.getElementById('lanes');
@@ -723,8 +723,11 @@
   roleDodgeBtn.addEventListener('click', ()=>joinCoop('dodger'));
   roleShootBtn.addEventListener('click', ()=>joinCoop('shooter'));
 
+  let lastSeenShotSeq = null;
+
   function listenCoopRoom(roomId){
     if(coopUnsub) coopUnsub();
+    lastSeenShotSeq = null;
     const ref = db.collection('coopRooms').doc(roomId);
     coopUnsub = ref.onSnapshot(doc=>{
       if(!doc.exists) return;
@@ -742,6 +745,31 @@
         setCoopStatus('まもなく開始...');
         setTimeout(()=>{ startCoopGame(); }, delay);
       }
+
+      if(typeof data.shotSeq === 'number'){
+        if(lastSeenShotSeq === null){
+          lastSeenShotSeq = data.shotSeq; // don't replay history on first attach
+        } else if(data.shotSeq !== lastSeenShotSeq){
+          lastSeenShotSeq = data.shotSeq;
+          const ls = data.lastShot;
+          if(ls){
+            const obj = coopObjs.find(o=>o.idx===ls.idx);
+            if(obj){
+              obj.hp = ls.hp;
+              const tag = obj.el.querySelector('.hpTag');
+              if(tag) tag.textContent = obj.hp;
+            }
+            if(mode==='coopDodger'){
+              shotSound();
+              if(obj){
+                const rect = obj.el.getBoundingClientRect();
+                muzzleFlash(rect.left + rect.width/2, rect.top + rect.height/2);
+              }
+            }
+          }
+        }
+      }
+
       if(mode!=='solo'){
         updatePartnerMarkVisual();
       }
@@ -845,9 +873,10 @@
   }
 
   function muzzleFlash(x,y){
+    const r = stage.getBoundingClientRect();
     const f = document.createElement('div');
     f.className='flashHit';
-    f.style.left = x+'px'; f.style.top = y+'px';
+    f.style.left = (x - r.left)+'px'; f.style.top = (y - r.top)+'px';
     stage.appendChild(f);
     setTimeout(()=>f.remove(), 280);
   }
@@ -865,16 +894,22 @@
     if(!target) return;
     shotSound();
     target.hp -= 1;
+    const tag = target.el.querySelector('.hpTag');
+    if(tag) tag.textContent = target.hp;
+
+    const updateData = {
+      lastShot: { idx: target.idx, hp: target.hp },
+      shotSeq: firebase.firestore.FieldValue.increment(1)
+    };
     if(target.hp <= 0){
       coopDestroyedIds.add(target.idx);
       coopDestroyedCount++;
       scoreVal.textContent = coopDestroyedCount;
-      if(coopRoomId && db){
-        db.collection('coopRooms').doc(coopRoomId).update({
-          destroyedIds: firebase.firestore.FieldValue.arrayUnion(target.idx),
-          destroyedCount: firebase.firestore.FieldValue.increment(1)
-        }).catch(e=>console.error(e));
-      }
+      updateData.destroyedIds = firebase.firestore.FieldValue.arrayUnion(target.idx);
+      updateData.destroyedCount = firebase.firestore.FieldValue.increment(1);
+    }
+    if(coopRoomId && db){
+      db.collection('coopRooms').doc(coopRoomId).update(updateData).catch(e=>console.error(e));
     }
   }
 
@@ -980,12 +1015,7 @@
   let touchStartX=null;
   stage.addEventListener('touchstart', (e)=>{ touchStartX = e.touches[0].clientX; }, {passive:true});
   stage.addEventListener('touchend', (e)=>{
-    if(mode==='coopShooter'){
-      const t = e.changedTouches[0];
-      shootTap(t.clientX, t.clientY);
-      touchStartX=null;
-      return;
-    }
+    if(mode==='coopShooter'){ touchStartX=null; return; } // shooting already handled by pointerdown above
     if(touchStartX===null) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
     if(Math.abs(dx) > 28){ dx>0 ? moveRight() : moveLeft(); }
