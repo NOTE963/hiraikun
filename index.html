@@ -436,8 +436,7 @@
     document.getElementById('weekLabel').textContent = '今週のランキング (' + weekKey + ')';
     db.collection('rankings')
       .where('weekKey','==',weekKey)
-      .orderBy('time','desc')
-      .limit(20)
+      .limit(200)
       .get()
       .then(snap=>{
         if(snap.empty){
@@ -445,18 +444,18 @@
           return;
         }
         rankStatus.textContent = '';
-        let i=0;
-        snap.forEach(doc=>{
-          i++;
-          const d = doc.data();
+        const rows = [];
+        snap.forEach(doc=>rows.push(doc.data()));
+        rows.sort((a,b)=> (Number(b.time)||0) - (Number(a.time)||0));
+        rows.slice(0,20).forEach((d,idx)=>{
           const li = document.createElement('li');
-          li.innerHTML = '<span class="rk">'+i+'</span><span class="nm">'+escapeHtml(d.name||'???')+'</span><span class="tm">'+Number(d.time).toFixed(1)+'秒</span>';
+          li.innerHTML = '<span class="rk">'+(idx+1)+'</span><span class="nm">'+escapeHtml(d.name||'???')+'</span><span class="tm">'+Number(d.time).toFixed(1)+'秒</span>';
           rankList.appendChild(li);
         });
       })
       .catch(e=>{
         console.error(e);
-        rankStatus.textContent = '読み込みに失敗しました';
+        rankStatus.textContent = '読み込みに失敗しました: ' + (e && (e.code || e.message) || '不明なエラー');
       });
   }
 
