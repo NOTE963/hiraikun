@@ -416,15 +416,33 @@
     return sec.toFixed(1);
   }
 
+  function getUserId(){
+    let id='';
+    try{ id = localStorage.getItem('hiraikunUserId')||''; }catch(e){}
+    if(!id){
+      id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : ('u'+Date.now()+Math.random().toString(16).slice(2));
+      try{ localStorage.setItem('hiraikunUserId', id); }catch(e){}
+    }
+    return id;
+  }
+  const userId = getUserId();
+
   function submitScore(timeSec){
     if(!db || timeSec < 1) return;
     const name = ensureUsername();
     const weekKey = getWeekKey(new Date());
-    db.collection('rankings').add({
-      name: name,
-      time: Math.round(timeSec*10)/10,
-      weekKey: weekKey,
-      ts: firebase.firestore.FieldValue.serverTimestamp()
+    const roundedTime = Math.round(timeSec*10)/10;
+    const docRef = db.collection('rankings').doc(weekKey + '_' + userId);
+    docRef.get().then(doc=>{
+      if(doc.exists && Number(doc.data().time) >= roundedTime){
+        return; // already have an equal or better record this week, keep it
+      }
+      return docRef.set({
+        name: name,
+        time: roundedTime,
+        weekKey: weekKey,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }).catch(e=>console.error('submitScore failed', e));
   }
 
