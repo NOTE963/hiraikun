@@ -269,7 +269,9 @@
   <div id="vsMenuScreen">
     <div class="title">対戦モード</div>
     <div class="sub">同じ場に2人が入り、同じ配置で降ってくる巨人を避け続ける。<br>長く生き残った方の勝ち。</div>
-    <button class="btn" id="createRoomBtn">ルームを作成</button>
+    <button class="btn" id="randomMatchBtn">ランダムマッチ</button>
+    <div class="weekLabel">— または —</div>
+    <button class="btn secondary" id="createRoomBtn">ルームを作成</button>
     <div class="weekLabel">— または —</div>
     <div id="joinRow" style="display:flex; gap:8px; align-items:center;">
       <input id="roomIdInput" type="text" maxlength="6" placeholder="ルームID" style="text-transform:uppercase;">
@@ -281,7 +283,7 @@
 
   <div id="vsWaitScreen">
     <div class="title">相手を待っています</div>
-    <div class="sub">このルームIDを相手に伝えてください</div>
+    <div class="sub" id="vsWaitSub">このルームIDを相手に伝えてください</div>
     <div id="roomCodeDisplay">------</div>
     <div class="weekLabel" id="vsWaitDots">.</div>
     <button class="btn secondary" id="cancelRoomBtn">キャンセル</button>
@@ -328,12 +330,14 @@
   const vsBtn = document.getElementById('vsBtn');
   const vsMenuScreen = document.getElementById('vsMenuScreen');
   const createRoomBtn = document.getElementById('createRoomBtn');
+  const randomMatchBtn = document.getElementById('randomMatchBtn');
   const roomIdInput = document.getElementById('roomIdInput');
   const joinRoomBtn = document.getElementById('joinRoomBtn');
   const vsMenuStatus = document.getElementById('vsMenuStatus');
   const vsMenuBackBtn = document.getElementById('vsMenuBackBtn');
   const vsWaitScreen = document.getElementById('vsWaitScreen');
   const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+  const vsWaitSub = document.getElementById('vsWaitSub');
   const vsWaitDots = document.getElementById('vsWaitDots');
   const cancelRoomBtn = document.getElementById('cancelRoomBtn');
   const vsCountdownScreen = document.getElementById('vsCountdownScreen');
@@ -830,16 +834,103 @@
     roomRef.set({
       host: userId, hostName: ensureUsername(),
       guest: null, guestName: null,
-      seed: seed, status:'waiting',
+      seed: seed, status:'waiting', isPublic:false,
       p1Lane:1, p2Lane:1,
       p1Done:false, p2Done:false, p1Time:0, p2Time:0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>{
+      vsWaitSub.textContent = 'このルームIDを相手に伝えてください';
       roomCodeDisplay.textContent = roomId;
       showScreen(vsWaitScreen);
       watchRoom();
     }).catch(e=>{ console.error(e); vsMenuStatus.textContent='ルーム作成に失敗しました'; });
   });
+
+  // ---------- random matchmaking ----------
+  let randomRetryTimer = null;
+
+  randomMatchBtn.addEventListener('click', ()=>{
+    if(!db){ vsMenuStatus.textContent='通信に接続できません'; return; }
+    resetVsState();
+    vsMenuStatus.textContent = 'ランダムな相手を探しています...';
+    findOrCreateRandomMatch();
+  });
+
+  function findOrCreateRandomMatch(excludeId){
+    db.collection('rooms')
+      .where('isPublic','==',true)
+      .where('guest','==',null)
+      .limit(5)
+      .get()
+      .then(snap=>{
+        const candidates = [];
+        snap.forEach(doc=>{ if(doc.id !== excludeId) candidates.push(doc.id); });
+        if(candidates.length > 0){
+          tryClaimRoom(candidates, 0);
+        } else {
+          createRandomRoom();
+        }
+      })
+      .catch(e=>{ console.error(e); vsMenuStatus.textContent='マッチングに失敗しました'; });
+  }
+
+  function tryClaimRoom(candidates, idx){
+    if(idx >= candidates.length){ createRandomRoom(); return; }
+    const ref = db.collection('rooms').doc(candidates[idx]);
+    db.runTransaction(t=>{
+      return t.get(ref).then(doc=>{
+        if(!doc.exists || doc.data().guest){ throw new Error('taken'); }
+        t.update(ref, { guest:userId, guestName: ensureUsername(), status:'ready' });
+      });
+    }).then(()=>{
+      myRole = 'p2';
+      roomId = candidates[idx];
+      roomRef = ref;
+      vsWaitSub.textContent = 'マッチしました！開始を待っています';
+      roomCodeDisplay.textContent = roomId;
+      showScreen(vsWaitScreen);
+      watchRoom();
+    }).catch(()=>{
+      tryClaimRoom(candidates, idx+1);
+    });
+  }
+
+  function createRandomRoom(){
+    myRole = 'p1';
+    roomId = genRoomCode();
+    roomRef = db.collection('rooms').doc(roomId);
+    const seed = Math.floor(Math.random()*1e9);
+    roomRef.set({
+      host: userId, hostName: ensureUsername(),
+      guest: null, guestName: null,
+      seed: seed, status:'waiting', isPublic:true,
+      p1Lane:1, p2Lane:1,
+      p1Done:false, p2Done:false, p1Time:0, p2Time:0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      vsWaitSub.textContent = 'ランダムな対戦相手を探しています(このIDを人に伝えても参加できます)';
+      roomCodeDisplay.textContent = roomId;
+      showScreen(vsWaitScreen);
+      watchRoom();
+      let tries = 0;
+      randomRetryTimer = setInterval(()=>{
+        tries++;
+        if(tries > 5 || countdownFired){ clearInterval(randomRetryTimer); randomRetryTimer=null; return; }
+        db.collection('rooms').where('isPublic','==',true).where('guest','==',null).limit(5).get().then(snap=>{
+          const others = [];
+          snap.forEach(doc=>{ if(doc.id !== roomId) others.push(doc.id); });
+          if(others.length > 0 && roomRef && !countdownFired){
+            clearInterval(randomRetryTimer); randomRetryTimer=null;
+            const oldRef = roomRef;
+            if(roomUnsub){ roomUnsub(); roomUnsub=null; }
+            oldRef.delete().catch(()=>{});
+            tryClaimRoom(others, 0);
+          }
+        }).catch(()=>{});
+      }, 3000);
+    }).catch(e=>{ console.error(e); vsMenuStatus.textContent='マッチング待機に失敗しました'; });
+  }
+  // -----------------------------------------
 
   joinRoomBtn.addEventListener('click', ()=>{
     if(!db){ vsMenuStatus.textContent='通信に接続できません'; return; }
@@ -855,6 +946,7 @@
       roomId = code;
       roomRef = ref;
       return roomRef.update({ guest:userId, guestName: ensureUsername(), status:'ready' }).then(()=>{
+        vsWaitSub.textContent = 'マッチしました！開始を待っています';
         roomCodeDisplay.textContent = roomId;
         showScreen(vsWaitScreen);
         watchRoom();
@@ -863,6 +955,7 @@
   });
 
   cancelRoomBtn.addEventListener('click', ()=>{
+    if(randomRetryTimer){ clearInterval(randomRetryTimer); randomRetryTimer=null; }
     if(roomRef){
       if(myRole==='p1'){ roomRef.delete().catch(()=>{}); }
       else if(myRole==='p2'){ roomRef.update({guest:null, guestName:null, status:'waiting'}).catch(()=>{}); }
