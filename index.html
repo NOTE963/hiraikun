@@ -97,16 +97,50 @@
   #tapzone { position:absolute; inset:0; z-index:50; display:flex; }
   .tapHalf { flex:1; }
 
-  #startScreen, #overScreen, #rankScreen, #vsMenuScreen, #vsWaitScreen, #vsCountdownScreen, #vsResultScreen {
+  #startScreen, #overScreen, #rankScreen, #vsMenuScreen, #vsWaitScreen, #vsCountdownScreen, #vsResultScreen,
+  #brMenuScreen, #brLobbyScreen, #brResultScreen {
     position:absolute; inset:0; background:rgba(0,0,0,0.88); color:#eee;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:30px; z-index:80; gap:14px;
   }
-  #overScreen, #rankScreen, #vsMenuScreen, #vsWaitScreen, #vsCountdownScreen, #vsResultScreen { display:none; }
+  #overScreen, #rankScreen, #vsMenuScreen, #vsWaitScreen, #vsCountdownScreen, #vsResultScreen,
+  #brMenuScreen, #brLobbyScreen, #brResultScreen, #brGameScreen { display:none; }
   #rankScreen { z-index:85; overflow-y:auto; padding:40px 22px 26px; justify-content:flex-start; }
   #rankScreen, #rankScreen * { touch-action:pan-y; }
-  #vsMenuScreen, #vsWaitScreen, #vsResultScreen { z-index:85; }
+  #vsMenuScreen, #vsWaitScreen, #vsResultScreen, #brMenuScreen, #brLobbyScreen, #brResultScreen { z-index:85; overflow-y:auto; }
   #vsCountdownScreen { z-index:96; background:rgba(0,0,0,0.4); }
+
+  #brLobbyCode { font-size:34px; letter-spacing:8px; color:#ffd23b; text-shadow:0 0 14px rgba(255,210,59,0.6); }
+  #brLobbyList { max-width:320px; line-height:1.9; }
+
+  #brGameScreen {
+    position:absolute; inset:0; z-index:80; background:#0a0a0a; overflow:hidden;
+  }
+  #brCanvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  #brHud {
+    position:absolute; top:14px; left:0; right:0; text-align:center;
+    color:#eee; font-size:13px; letter-spacing:1px; text-shadow:0 0 4px rgba(0,0,0,0.9);
+    z-index:2; pointer-events:none;
+  }
+  #brJoystickBase {
+    position:absolute; left:26px; bottom:26px; width:100px; height:100px;
+    border-radius:50%; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.3);
+    z-index:3; touch-action:none;
+  }
+  #brJoystickKnob {
+    position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px;
+    border-radius:50%; background:rgba(255,255,255,0.45);
+    pointer-events:none;
+  }
+  #brFireBtn {
+    position:absolute; right:26px; bottom:34px; width:84px; height:84px; border-radius:50%;
+    background:rgba(255,42,42,0.75); border:2px solid rgba(255,255,255,0.5); color:#fff;
+    font-family:inherit; font-size:13px; font-weight:bold; letter-spacing:1px;
+    z-index:3; touch-action:none;
+  }
+  #brAmmoBadge {
+    display:block; font-size:16px; margin-top:2px;
+  }
 
   .title { font-size:25px; letter-spacing:3px; color:#ff2a2a; text-shadow:0 0 12px rgba(255,0,0,0.7); }
   .sub { font-size:13px; line-height:1.75; color:#ccc; max-width:340px; }
@@ -285,8 +319,49 @@
       <input id="roomIdInput" type="text" maxlength="6" placeholder="ルームID" style="text-transform:uppercase;">
       <button class="btn small" id="joinRoomBtn">参加する</button>
     </div>
+    <div class="weekLabel">— または —</div>
+    <button class="btn secondary" id="brOpenBtn">バトロワ(β)</button>
     <div id="vsMenuStatus" style="font-size:12px;color:#888;min-height:16px;"></div>
     <button class="btn secondary" id="vsMenuBackBtn">ホームへ戻る</button>
+  </div>
+
+  <div id="brMenuScreen">
+    <div class="title">バトロワ(β)</div>
+    <div class="sub">最後の1人になるまで戦う。<br>降ってくる巨人を拾って発射、当てたら即脱落。<br>人数が足りない分はbotが埋めます。</div>
+    <button class="btn" id="brCreateBtn">ルームを作る</button>
+    <div class="weekLabel">— または —</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input id="brRoomIdInput" type="text" maxlength="6" placeholder="ルームID" style="text-transform:uppercase;background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.35); color:#fff; font-family:inherit; font-size:16px; padding:8px 10px; border-radius:4px; width:110px; letter-spacing:4px; text-align:center;">
+      <button class="btn small" id="brJoinBtn">参加する</button>
+    </div>
+    <div id="brMenuStatus" style="font-size:12px;color:#888;min-height:16px;"></div>
+    <button class="btn secondary" id="brMenuBackBtn">戻る</button>
+  </div>
+
+  <div id="brLobbyScreen">
+    <div class="title">ロビー</div>
+    <div id="brLobbyCode">------</div>
+    <div id="brLobbyList" class="sub" style="text-align:left;"></div>
+    <div id="brLobbyStatus" style="font-size:12px;color:#888;min-height:16px;"></div>
+    <div class="btnRow">
+      <button class="btn" id="brStartBtn" style="display:none;">ゲーム開始</button>
+      <button class="btn secondary" id="brLeaveLobbyBtn">キャンセル</button>
+    </div>
+  </div>
+
+  <div id="brGameScreen">
+    <canvas id="brCanvas"></canvas>
+    <div id="brHud">
+      <span id="brAliveCount">生存: -</span>
+    </div>
+    <div id="brJoystickBase"><div id="brJoystickKnob"></div></div>
+    <button id="brFireBtn">発射<span id="brAmmoBadge">0</span></button>
+  </div>
+
+  <div id="brResultScreen">
+    <div class="title" id="brResultTitle">結果</div>
+    <div id="brResultBody" class="sub"></div>
+    <button class="btn secondary" id="brResultHomeBtn">ホームへ</button>
   </div>
 
   <div id="vsWaitScreen">
@@ -807,6 +882,7 @@
   let roomRef = null;
   let roomUnsub = null;
   let oppLaneIdx = 1;
+  let lastRoomData = null;
   let oppDone = false, oppTime = 0;
   let myVsDone = false;
   let resultShown = false;
@@ -817,11 +893,13 @@
 
   function startPresenceHeartbeat(){
     stopPresenceHeartbeat();
-    presenceTimer = setInterval(()=>{
+    const sendBeat = ()=>{
       if(!roomRef || myVsDone || mode!=='vs' || !running){ stopPresenceHeartbeat(); return; }
       const field = myRole==='p1' ? 'p1Seen' : 'p2Seen';
       roomRef.update({[field]: firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
-    }, 4000);
+    };
+    sendBeat(); // send immediately so the opponent has a baseline right away
+    presenceTimer = setInterval(sendBeat, 4000);
   }
   function stopPresenceHeartbeat(){
     if(presenceTimer){ clearInterval(presenceTimer); presenceTimer=null; }
@@ -840,8 +918,9 @@
   }
 
   function showScreen(el){
-    [startScreen, overScreen, rankScreen, vsMenuScreen, vsWaitScreen, vsResultScreen].forEach(s=>{ if(s) s.style.display='none'; });
-    if(el) el.style.display='flex';
+    [startScreen, overScreen, rankScreen, vsMenuScreen, vsWaitScreen, vsResultScreen,
+     brMenuScreen, brLobbyScreen, brGameScreen, brResultScreen].forEach(s=>{ if(s) s.style.display='none'; });
+    if(el) el.style.display = (el===brGameScreen) ? 'block' : 'flex';
   }
 
   vsBtn.addEventListener('click', ()=>{
@@ -1023,6 +1102,7 @@
   });
 
   function handleRoomUpdate(d){
+    lastRoomData = d;
     // opponent lane sync
     const oppField = myRole==='p1' ? 'p2Lane' : 'p1Lane';
     if(typeof d[oppField] === 'number'){
@@ -1072,11 +1152,17 @@
     if(mode==='vs' && running && !myVsDone && countdownFired){
       const oppSeenField = myRole==='p1' ? 'p2Seen' : 'p1Seen';
       const seenVal = d[oppSeenField];
+      let stale = false;
       if(seenVal && typeof seenVal.toMillis === 'function'){
         const ms = seenVal.toMillis();
-        if(ms > 0 && (Date.now() - ms) > 10000){
-          endVsMatchAsWinner('left');
-        }
+        if(ms > 0 && (Date.now() - ms) > 10000) stale = true;
+      } else if(elapsed > 12){
+        // never got a single heartbeat from the opponent - if it's been
+        // this long they almost certainly disconnected before sending one
+        stale = true;
+      }
+      if(stale){
+        endVsMatchAsWinner('left');
       }
     }
   }
@@ -1284,6 +1370,555 @@
     iosHint.style.display = 'block';
   }
   // ---------------------------------------
+
+  // ================= BATTLE ROYALE (beta) =================
+  const brMenuScreen = document.getElementById('brMenuScreen');
+  const brOpenBtn = document.getElementById('brOpenBtn');
+  const brCreateBtn = document.getElementById('brCreateBtn');
+  const brRoomIdInput = document.getElementById('brRoomIdInput');
+  const brJoinBtn = document.getElementById('brJoinBtn');
+  const brMenuStatus = document.getElementById('brMenuStatus');
+  const brMenuBackBtn = document.getElementById('brMenuBackBtn');
+
+  const brLobbyScreen = document.getElementById('brLobbyScreen');
+  const brLobbyCode = document.getElementById('brLobbyCode');
+  const brLobbyList = document.getElementById('brLobbyList');
+  const brLobbyStatus = document.getElementById('brLobbyStatus');
+  const brStartBtn = document.getElementById('brStartBtn');
+  const brLeaveLobbyBtn = document.getElementById('brLeaveLobbyBtn');
+
+  const brGameScreen = document.getElementById('brGameScreen');
+  const brCanvas = document.getElementById('brCanvas');
+  const brCtx = brCanvas.getContext('2d');
+  const brAliveCount = document.getElementById('brAliveCount');
+  const brJoystickBase = document.getElementById('brJoystickBase');
+  const brJoystickKnob = document.getElementById('brJoystickKnob');
+  const brFireBtn = document.getElementById('brFireBtn');
+  const brAmmoBadge = document.getElementById('brAmmoBadge');
+
+  const brResultScreen = document.getElementById('brResultScreen');
+  const brResultTitle = document.getElementById('brResultTitle');
+  const brResultBody = document.getElementById('brResultBody');
+  const brResultHomeBtn = document.getElementById('brResultHomeBtn');
+
+  const BR_ARENA_W = 360, BR_ARENA_H = 640;
+  const BR_MY_SPEED = 120, BR_BOT_SPEED = 108;
+  const BR_PROJ_SPEED = 260;
+  const BR_HIT_RADIUS = 16, BR_PLAYER_RADIUS = 14;
+  const BR_MAX_AMMO = 3;
+  const BR_COLORS = ['#ff5252','#448aff','#69f0ae','#ffd740','#e040fb','#40c4ff','#ff6e40','#eeff41'];
+  const BR_BOT_NAMES = ['ボット太郎','ボット花子','ボットA','ボットB','ボットC','ボットD'];
+
+  const brGiantIconImg = new Image();
+  brGiantIconImg.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAXVklEQVR42u2bW6yt13XXf2PMOb9125dz8Tm+JDjGceLg1EkUPzUkTaCiicIlEmoqtRUqlxeQKFDlgQohpRI8BHhAFahCfUGiCCQSpFJVTRsCJCmoVOolibFzwTFxmtjxsX0u++x1+b5vjjF4mN/ajuTUt/Qk4bJfls7aa6+15n+Oy///H+PA///5f/tHvh++xIc//GF96q670tc+85nFjccfn7v78fz4Uiq+eOqTn/zojf/rAHjoHe94/TznNw7b4bzmuC3n7nb34UIgd+z6ehzBbYSklPTRodrH+9p/6n++6U1P8NGP2v/RADx0553LuHzxz82Pz/+t48OLb84pyqY/nd24dpKHfo2WjhiDnDs2/Y5aHRJbieFR68f/6G6/JlI+//jjj/+RRUX6bh3+7vvufiAtZn+vLLqfXR0t7z86Oj9fHB53Vk03N09Yn64Zhy117OnHLf3mFLdKKrkkr3eZxTtt5L0q9vbbLhwvU57d3Gw2N4D4vgbg/vvvP1xeWP54qv1HFvPygdnBwSKXGcSIubMbBkbb0u92KA6qbNYDVkfcDHNIVsGh03zYdekBlPcivOfi8eHrLp9bfuW5G+vrr/b75Vt5+De84a63nfYnPy3uPxrO0c31wM5P6LcD6y5jYYzVSGF0JaOaMTM0CUMVIoLU9/QKJSe6AgeLGR6xmHeLh2bEQ5ttH8Dff7WRcEsi4O677z4/W8x+ajeMH8H8vQozSaV9oDhdl/FaGfo15k5JQldmeBj9bqAfBsyCkhJdTojArBSOlnMuHB2yKB2qwqWjA0azOxbH5z959erVZ78vALj3zjvvNvV/klT/juCv7TKUboakTFLokpKLMNaBWivj6IgEozv9buT0dIfVSslKVkGBIsrBYsZiXph3HWLK4WpOmSnXTzYXfNtfe+bGjU99zwF44IFLB6OWf1BK+qs50c26RCodiCMY7hCi1H5gNwxYNdxABbqUMAvqWBFARclJyZrIKZFECBFGc7pcOJgvSKUwDDvph93tt99+4RNPP3v9ue8hAB/WCxce/uui6UOaKZoTqgkQkgaEQDgh7ZCjgYaQSqbLHctFx2w+w9wJcxJCUaXkTJneSxDMjOojqDKORpJCKvniUemeffyppz/9PQPgjQ989b0J+ceKXlBxwsE9cKtEKBKOu1ND8UgISkRQipByImeljka/G1vxA3JWigoqCQgsHI8g3KnVqHXk8GDF8eFcfNxefv0dl37jsaeeufZdB+D+e+65vx/Hf4bEm4oq7kGYI9q4lgNowBQROYFqoCrkNKPMMlYr69MN42BkEUpuoS8pIUCInNX5CHAzSk4Ewmaz42S9vm27q1e+/ty13/yuAvDggw+er7r7Ryml93VFIYwagiiIgKigOEImBHIKVrNC7gqSgi4LqShuQU6CkAhzdruBfhxxD7rcIkAEIoKb2x03N1s2/cCiFGaaGIYqVuNyLd3H1+uXzwv0Ozn8u99NNrv5NwX9oERQh5F+HKhesQiqBbigWjATcEVEiJyYdZllVzC8FcXNgFUFN4Y6crCac+5gBQTrYUCksfb1rkciOH94wMFiwZUbJ6CJWe7YDMObqfXHvmsRsFq95i9W9B9iHGRVXBUz0AgCIRC6VEhJ6DqhlJbPtToWRjUYhpbzosIwVLa7kfmsY9EVRJSuZG6uNwyjsRtGxlo5Xi1BlFnOiAhXT06otTJUExduOzg6/rWbN2+e3FIm+OCDr3+7h/1cCr0YCqONDLVCtHxVgpIFnSmalDo6Eo6KEFGp1QhvhW8XUJIy72ZklLE6EUrSYBiNlBLzWUFC2Aw9oztdUqoZp7sd5+dzVvM5lS1HJd8hQz3/JPzBLQPgLW+597JE+jmZzd/stSJSsWrUoaIqhCilSxwsVwSKhTOMIzYMzOaFSI5bEBiGgDlalAiYdR3juOX6+pQsQnXnaLkgp1bwJAk3N1tKSrgHJScOV0sQ6DrBh/Tw4mD+v26pFnDpfqxTe3+YUWvFvCKqlHmHmRHV8aqcbkfEK5oC70dagAxnVd09mKVC6gJECHNcgtVizmiVcDjIGcnSSj8tUs6tlgy1kpKyms0ZayUw5qUgOX36vz78yM1bBsDt995+OcJ/QrqSpDolJUYzkhbKTOm3W9wM3NhttywK5MWMThJiQR22eAWXREqCptYxanUSqbU6CbpSEASJRqJi6oEBqCrzrkOToCKt1TqYj8+tVukVUeJXDEDn8r7dtn/IUWLc4WGMA4QbsmtfrpvPEMmtMNnAcNpjnhD1RmpSkEtBJIGMOJA1oaLgIKJIgNAi46z/yx6M6Scg3BmB3Thw9fr6kdNvXn3klgFw7733HpvtfkKIbqwbhm2PCJiBV6ebJyQn6jAiYVRxEMV6n25LESB3oEWwEIadoa7Mu3aiduGBnplVQespDZQzIAAJwSUwq5xue4bw/3Lt2rUbtwyA2Wp8j4/zd5Z5R07BJgq7YaDutoSDmRBuZBVCC1mcahVEcHPCnXBhu3UkVzQnNIAQNr2h0vi/ELjQwjsA0eejgEBCQJq8cA9Gq4zmJyivWAu8bABe+9rXLtTlJ8usrIZxpG57PBJJM2XW0fcDm23PLGdmqxWSErvdhnF06mhoyqg4bkpY47NuzfRwH8CDrmTIgWaQnNqZRUGmChDxvIsZMVHuwAIQeUS1e/iWAaBd/OAwyg9nRsbRUFHcjUSQS6ZLiX6slKS4QHiPh4O18DVXfJK4IY6542ZEVMymWy1NOwQNmJAWDbI/eMiU+BMGDt4KAZh/5qlvXnn2lgDw0EOUp745/LjVeiF27Qt1CvPFnJwT5q0IUmaUCDQpJSc2BDsXfISEIBKgLc9FYvL9QJKQUksTz40PyP6wMpnXcZYDoBAeRAQ5JSqsDf/0q2npLwuAb3zj4tsce780R4OQaPKmBLMM1Y1xNNwGqgiSRvpd0I9ONcFxVDOOIqMT4TgO3k4jCOEORRBtt9/ufrpw2QdA+4dEO3yXMrOusO37L46uv3fLADDzD4jIXZI5673hsB1GhFbkqivu4DTFVofKZjegoiRViARSp0sVCCVlQdwJWnF0A6tGSZOUxNprESJkaostBdLkF6YEKnz8ypUrV24JAIeHhxcD/2FNecpPMIuWdkPP2AddN6d0iqi2NxSlVjsjKBLgXhGN5uz4lLeSEGnegXsQLk3rRxBmhAYGlCnipjhAonmLh6s5o9kjo8S/frWu8EsCcOnS+bftxt0DiJOmoqRJ8YAgE5LJOdMVbYaHOaMbFoFOYtvdCauoK6GCyPQcgoiDCDkD4nitWChVmhssU/q3jhiotNtflhmLbjaq9b/48Je++qVbNhcIGX/oYNkd2TAw6zpEle1oDLuBCFCFse+xPlDNBMJuGOnHlhpYtLYniuGIjWjah7URFqSUWu6LUAnEK9kTc7QVuwQSThEhp0QuhYNlh43jb0q/+bffiaR/UQDuu+/CURbeNctC5BlDXwkzuqT0EYyD0XWCqE63HFSvVG8RTjg+PUrrA3g4EYJqokEC5q2XJ23s0ElEjHS5Q5WJHCnVKsmCxbyAcGJj/PNf/+xjz9wyACLSD5jXt4y1EY++Gh5O3QZjDVybpRIi2P7CAXchZSVsorbhEBOZ2YuXaLmcUpqqu06AtcJarbDuE4suczDPHC5XXFuvYRqSDEP95S9cee7Xv1NL70UBKCm/q+/94q4fzsZV1R2bvHtH2VkFMVTAw5octiAlmSo4iKaJvzhJW+V2BLx9vEjz+whBJDUPAWE77ghPzLOymHVEOLth5Ot9/7VhN/7C17/xje0tA+ChO+9cXh/ru8fquEEpSs5CdsHyDGowurWeLZPrUyG8Ai1CiCBpnpzHRt41hLDAI8hJWz0IbawQWlEJMB8JlI3D9sYpz5yetrkCQfX4D1eevfbbt3Q8vrpj/gPV9EOzUg67krE6Mpsljg/maDeDFIgmbIyzCo0zeYEgIpOR2QRSRLSJjzYSYxbt9807bxK4vYKgyVzVRGhMbTMwafTYQ1keLOX4aPbs6enuxi0B4I6Lhx9MST+4nCWZF0FyZhy9jbDDGauzyB2zRcFqEGjLZYlGWiIQHJmcH3cjorG8RvCaQ6wSQLSxmQctORo44Y01mrVnhZistHgtFn8G03esFqvj5cHq2c1mc+2PDID77mNmtvpQUh5QbWHpofSDsd6O9DtnGB3FsGCyupxqrY979XZgF3zq4So6uToO0oyTJJPo2a+qSEz/lsae2kiFlHLjDtIKbqPKOWfVuyPiT6O86+Do4NLB6uDq+v3rqzz68kmRfPu5/oU/MezSx7Om15WiWMmsb26oozFWwKwNPFICKZgZ+EDElL9mzcYIQTBEdSI/oCqo7vV9K5SqCuqItHFZeDNSIhpYMkULNDNVHJiKqYQiWQFMPL4oSX5ZUvqlJ5988kuvOgJuu3D0AZCfdBHdbAe2m55haB+u2ny8kIwbhFUibMplaexP5azq77l84/AJRZuWmNBPqk3lik4tcw+MTmkkIGl6deMTWVvRtdinHkSgqnJZlXd5tbeV1erLu83mJa1xfeG0593ZQt+jEinC241YgD/Pxr9VnsoZRW+5PFpt7s8kZUWf9++ENh2O6YiItEN4oCIkUVSYIsGnCJp0YTQARWSyxISk2vRFBAkFUUSTCPqu7PEvLl68/BdeahHsBRHQddt7ao2/q0UvdikznyvdvFBjugFJTdlp18ya1MLT996lT8VP2+3qxBJBzqwsCETz83CqnLW4xiCnGEhp0hwT2OjUcRp5yinIohDavAZodSggp3TZfXxn6bqTvu8foXG0lwbg0oWj92eVv5y7lFSDFJBKAs0QgrtOPNcJaruYGmcqTfa9nL0PuHdypjyWliEyRc+Z7UeaDFEh6aQ7p+hRfd4gba//lsvYF0f2FFumgHTM/ZjQd3alcHB48Lntdju8JAB33n70V3LiTyqtd5sLSSDnQEmYC5GkPTbG0g45hXRMLY7YM7v2hVKSKSUmXR8yHUbRiTd47CtzIKpoyhONBpEmmEgtkhQDcou2iWCd2WZKG8xGQPjCiR/0ytG5cvz763G9ftEaoMoQqrQxRddyLsB2jlVvc72x4mZPSzC0a4wzl1aUVvljf/HtC8UETQMho1lBZbpFmaRuNH8AaS10dAg9W7YQWr6r7HcPaqsdKm3/IAWIY2aYVZxo8lvTEuWnhzz800uXLr3+RSPg4GjxVqvxI+5BUqGkhAnkqZVtxrruh/qxpHxBRR4EcjM8fLKs9yxwegxH97I2fMpVaQCFtOeQhpPKWWsMIGWdRJQj2uYDipJEQZUiSpcyJWuj45qQkLP3zaJTukBKqiL6YELfdLQ6+sLp5vSb31YLdEmfRsUJdHTHTaBTNn2F8EeXXffzYvG56ukXiJiZ9a1qy2RU7unLZAUJUCfl1+YD2uxxmu3lYVOXS80JCmk3LA0GlYRLC/eWkoakIFPoUuHS8RGrRaFGoq8DuPHszQ0n64qZY1hrvZHaPDLiR2qMz9x3331/7bHHHutfAMDBXJ6JXHqxWPRhnK57hpM4HWr691ns55988umHL1069xGhvN2iti+qQgqF1JQd1XARmHR8CgNvAkgmUPZQqSrI5JsBEnkqitG6x342uPfWUIoWDhdzBOWOCxdYzjNI4DQjBb/Cen1C3UebQE4t4ZMmrMpXHnvsseHbRsC6+rXaj9thOyyQYAih9v5LtT77s1eucnLp/NH7xOOnREYsfGr/MZUCISUlaXtOu4wGmLeNLol9lOxXaNosEJ9a5b6ehJy1PcRQDdx8IhXBvCTuOj7gdLMlbI3YnCwCJRMiHB4sKNfnUCvhhrszGog70vG0EL+69xBfAEDs8rV5x00r6cJ6U/GwEynpY1evcHLHHQeXwuVnipbb3AKXtgCl0/pKyXB4vGwDDXcsHGqlepvujBVcYy8HpjmBNifZvPkGEtNw1OCMMIHmKW4cBq9cPz3FqqEUzi0P2Fll55DFuePCEd94+hmu1+FbuIYiCh7x3xYH84d57g/xA8SGm7M0vzFYs60y+ggyfLbNBg/+km/rn5qTSBl2Zqz75gekkpocdqeU1ro8jMGd0AzihI9t6Cmt/oooHuO0P9h6t3rrGqSm/AghVKftkoKqYBac7nYsZoWslWFYY6l1i6xQRTk6XHB1uyOm/UR3B/dR1H/liSee3v2hhshw0zaW+us5KwerGWJ8+ktfefbqG95w6a2bPv5GRypZFXCStJ4cU666CZuNkbu24jbWBkQhGKYmHz51Bw0Ea38nCcKm6h/gMemDQJJMNUDxaN1gMNhIcLBcsunbhkruMqGZ+TwxhnO0mtNlwaxitP1CgS+P7p96UR7w2NWr29R1zyxWM5YLvblcdp984IEHOq/ytxNyX5raIaFTzk87gNL6ultgtTKOlRzKfJZJMtkk0/JDI4RN+qJ6xiD3mS+qYJy9F240Me1YVBzoHXa1LVWfO3eO1WLO0TKxq8Y4OMvcsZrPEGmFthmy8onr16//wUtZYuN268+iGVQfLcl+V4br71XVH02hpGmW5xPdVG07fkWEblXY1kr15gbXOiDWVN3eBoloO0N7x0gnmRtSpt8380RoNnnTFyMpJlUYQpJKEmWwxGm/4bmbN0jADIUuMZsLjnH5/DlyEq6f9ozjcGNwfvXMZHjRPcEsz+x2W2y7/tTnP/fEdVP+rIcfYiNZIUlM6y2JlNrEVzVRusRi2XG4nLNczOiKkhC6kulmZdr3nT5YmnAinLQvcGETX9BpLLanRYI3LYlHNCs9lGGEk+3AlSvXGceRIYzkzjwyEsrhPHH/H7ud1126jXPLw99JKf3Oy1qUtNGvhMl6Pj/6zwHl5Nr23mE3IqY4mWqcFTyRVizHME7WO7brgToOJDGODuYcLBPdsmtEeGJ1TUm3zuAiiChZg5zaJQtORJpqRtMjNo3JdXIFxoBNNU5rj9NmCqkTdtV47saaUgpJZpRI3Hn+8MYb7774765evXryslzh9fr02nLWPZxH/b3VanVhGP2uxbwgEViMlNxIf/P9m+jYjSNEa4kJoeLUcMQh+d77a+1o2gE5m3bjUHLGwrHRvkX1xVnNONsSiclmA2w0qhROdjvGZ0bmJZNSImEcrFaIptE9fmuW0y9WX/3Ky7bFVfMzLvk3fvfLX3720msuvTVXv01jWmRCyBHsbY3wIGVhER2jN5lsIYTJ2RZoSYHXOtHjdKbuoQHjZriks0iIcEpSRt9niT8/P9gnR1QUpzqc9MbNQcjAsutYLhdoP3xhNsv/aqf133zsU49+7RXNBVZFvypduQpwbtm91tyPZRyZJSFrQcIayYk6HVrRnEgOVgMzY7TmHyZVJMForaXFNOFWbdOhBgpUq23ul7SN1qameCaqcpsxqkx/N6VPG9Q4Iak5Q8m+WWr92GD5X/6n3/7877/U1Pjbp8DWb5vp+kabDsk9s/lsbhtIJOYl04/Orq+4B5qVwUFqxcNRhcWyMJstGPtK74bU2tZc0HbjHiAJBcxlcnTaWLyZ0IXqflYzhNZecdpiRcs1PNrfqrb64uGP9+P4M2OefeKzj31x92onQ8nC//x2K78F/I/tdrineNCRmZdMZEG8OS8xDTxlcog0N1OkHwXVEVRY5g66BNkYT3YtAnRaf2lCAPe2Pzh4IGGkInjo84uSyFn+m0wU2gNIOHZmoEbI+qrk/75+4ondy7XFX9AFjo6Ojl35Ife4DMh6Pfzx05MdVgNKIqVmYJCDlFrlJkCykjSjJMbROd3ZNBNo5oWm9t9eVNs4zEOndtceQ2LS/BPJmgyUPVgSbQFDdT9Fom2nEJMJC6jcNRvHe17JYOQFACyXepjEL+N+7tKlS6vB/DXVok1nRkEqeCijOX2FYajYWKEG5sEwVlIWMor1wa4K6z7odwMpBUmah+htt7Vx9dZ8SbK3ySdnaDJRolmMJLX9jkjrITLNFaOlg3scR62vfyUA/G/HATmWkRJblwAAAABJRU5ErkJggg==';
+
+  let brRoomRef = null, brRoomUnsub = null, brRoomId = null, brIsHost = false;
+  let brPlayers = {};
+  let brRunning = false, brAlive = true, brWinnerDeclared = false;
+  let brAmmo = 0;
+  let brMyPos = {x:180,y:320};
+  let brFacing = {x:0,y:-1};
+  let brJoyDir = {x:0,y:0};
+  let brProjectiles = [];
+  let brProcessedLaunchIds = new Set();
+  let brBots = [];
+  let brPickups = [];
+  let brPickupLastCycleCollected = {};
+  let brMatchStartPerf = 0;
+  let brLastFrameAt = 0;
+  let brLastPosSyncAt = 0, brLastBotSyncAt = 0;
+  let brAnimHandle = null;
+
+  function brRandomColor(){ return BR_COLORS[Math.floor(Math.random()*BR_COLORS.length)]; }
+  function brUpdateAmmoBadge(){ brAmmoBadge.textContent = brAmmo; }
+
+  function brLeaveBR(){
+    brRunning = false;
+    if(brAnimHandle){ cancelAnimationFrame(brAnimHandle); brAnimHandle = null; }
+    if(brRoomUnsub){ brRoomUnsub(); brRoomUnsub = null; }
+    brRoomRef = null; brRoomId = null; brIsHost = false;
+    brPlayers = {}; brProjectiles = []; brProcessedLaunchIds = new Set();
+    brBots = []; brWinnerDeclared = false; brAlive = true; brAmmo = 0;
+    brPickupLastCycleCollected = {};
+  }
+
+  brOpenBtn.addEventListener('click', ()=>{
+    brMenuStatus.textContent = '';
+    brRoomIdInput.value = '';
+    showScreen(brMenuScreen);
+  });
+  brMenuBackBtn.addEventListener('click', ()=>{ showScreen(vsMenuScreen); });
+
+  brCreateBtn.addEventListener('click', ()=>{
+    if(!db){ brMenuStatus.textContent='通信に接続できません'; return; }
+    brLeaveBR();
+    brIsHost = true;
+    brRoomId = genRoomCode();
+    brRoomRef = db.collection('br_rooms').doc(brRoomId);
+    const seed = Math.floor(Math.random()*1e9);
+    const myColor = brRandomColor();
+    const initPlayers = {};
+    initPlayers[userId] = { name:ensureUsername(), alive:true, isBot:false, x:180, y:320, color:myColor, joinedAt:Date.now() };
+    brRoomRef.set({
+      host:userId, hostName:ensureUsername(),
+      status:'lobby', seed:seed,
+      players: initPlayers,
+      launches: [],
+      winnerUid:null, winnerName:null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      brLobbyCode.textContent = brRoomId;
+      showScreen(brLobbyScreen);
+      brWatchRoom();
+    }).catch(e=>{ console.error(e); brMenuStatus.textContent='作成に失敗しました'; });
+  });
+
+  brJoinBtn.addEventListener('click', ()=>{
+    if(!db){ brMenuStatus.textContent='通信に接続できません'; return; }
+    const code = brRoomIdInput.value.trim().toUpperCase();
+    if(code.length < 4){ brMenuStatus.textContent='ルームIDを入力してください'; return; }
+    brLeaveBR();
+    const ref = db.collection('br_rooms').doc(code);
+    ref.get().then(doc=>{
+      if(!doc.exists){ brMenuStatus.textContent='ルームが見つかりません'; return; }
+      const d = doc.data();
+      if(d.status !== 'lobby'){ brMenuStatus.textContent='このルームは既に開始しています'; return; }
+      const myColor = brRandomColor();
+      const upd = {};
+      upd['players.'+userId] = { name:ensureUsername(), alive:true, isBot:false, x:180+Math.random()*30-15, y:320+Math.random()*30-15, color:myColor, joinedAt:Date.now() };
+      return ref.update(upd).then(()=>{
+        brIsHost = false;
+        brRoomId = code;
+        brRoomRef = ref;
+        brLobbyCode.textContent = code;
+        showScreen(brLobbyScreen);
+        brWatchRoom();
+      });
+    }).catch(e=>{ console.error(e); brMenuStatus.textContent='参加に失敗しました'; });
+  });
+
+  brLeaveLobbyBtn.addEventListener('click', ()=>{
+    if(brRoomRef){
+      if(brIsHost){ brRoomRef.delete().catch(()=>{}); }
+      else { brRoomRef.update({['players.'+userId]: firebase.firestore.FieldValue.delete()}).catch(()=>{}); }
+    }
+    brLeaveBR();
+    showScreen(brMenuScreen);
+  });
+
+  brStartBtn.addEventListener('click', ()=>{
+    if(!brIsHost || !brRoomRef) return;
+    const current = Object.keys(brPlayers).length;
+    const target = 6;
+    const botsNeeded = Math.max(0, target - current);
+    const updates = {};
+    for(let i=0;i<botsNeeded;i++){
+      const botId = 'bot_'+Math.random().toString(36).slice(2,8);
+      updates['players.'+botId] = {
+        name: BR_BOT_NAMES[i % BR_BOT_NAMES.length], alive:true, isBot:true,
+        x: 30+Math.random()*(BR_ARENA_W-60), y: 30+Math.random()*(BR_ARENA_H-60),
+        color: brRandomColor(), joinedAt: Date.now()
+      };
+    }
+    updates.status = 'playing';
+    brRoomRef.update(updates).catch(e=>{ console.error(e); brLobbyStatus.textContent='開始に失敗しました'; });
+  });
+
+  function brRenderLobby(d){
+    const ids = Object.keys(d.players||{});
+    brLobbyList.innerHTML = ids.map(id=>{
+      const p = d.players[id];
+      return '<div>' + (id===d.host ? '★ ' : '・') + escapeHtml(p.name||'???') + '</div>';
+    }).join('');
+    brStartBtn.style.display = brIsHost ? 'inline-block' : 'none';
+    brLobbyStatus.textContent = brIsHost ? '' : 'ホストの開始を待っています...';
+  }
+
+  function brWatchRoom(){
+    brRoomUnsub = brRoomRef.onSnapshot(snap=>{
+      if(!snap.exists){
+        if(!brWinnerDeclared){
+          brMenuStatus.textContent = 'ルームが閉じられました';
+          brLeaveBR();
+          showScreen(brMenuScreen);
+        }
+        return;
+      }
+      const d = snap.data();
+      brPlayers = d.players || {};
+      if(d.status === 'lobby'){
+        brRenderLobby(d);
+      } else if(d.status === 'playing'){
+        if(!brRunning){ brStartLocalMatch(d); }
+        brProcessLaunches(d.launches || []);
+      } else if(d.status === 'ended'){
+        if(!brWinnerDeclared){
+          brWinnerDeclared = true;
+          brEndMatchUI(d);
+        }
+      }
+    }, err=>console.error('br room error', err));
+  }
+
+  function brBuildPickups(seed){
+    const rng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+    brPickups = [];
+    for(let i=0;i<14;i++){
+      brPickups.push({
+        x: 30+rng()*(BR_ARENA_W-60),
+        y: 30+rng()*(BR_ARENA_H-60),
+        period: 8+rng()*4,
+        activeFor: 5+rng()*2,
+        phase: rng()*10
+      });
+    }
+  }
+  function brPickupActiveAt(pk, t){
+    const cyc = (t+pk.phase) % pk.period;
+    return cyc < pk.activeFor;
+  }
+  function brUpdatePickups(t){
+    brPickups.forEach((pk, idx)=>{
+      if(!brPickupActiveAt(pk, t)) return;
+      const cycNum = Math.floor((t+pk.phase)/pk.period);
+      if(brPickupLastCycleCollected[idx] === cycNum) return;
+      const d = Math.hypot(brMyPos.x-pk.x, brMyPos.y-pk.y);
+      if(d < 22 && brAmmo < BR_MAX_AMMO){
+        brAmmo++;
+        brUpdateAmmoBadge();
+        brPickupLastCycleCollected[idx] = cycNum;
+      }
+    });
+  }
+
+  function brResizeCanvas(){
+    const rect = brGameScreen.getBoundingClientRect();
+    brCanvas.width = rect.width;
+    brCanvas.height = rect.height;
+  }
+  function brToScreenScale(){
+    return { sx: brCanvas.width/BR_ARENA_W, sy: brCanvas.height/BR_ARENA_H };
+  }
+
+  let brJoyActive = false, brJoyStartX = 0, brJoyStartY = 0;
+  const BR_JOY_MAXR = 40;
+  function brJoyOnStart(){
+    brJoyActive = true;
+    const r = brJoystickBase.getBoundingClientRect();
+    brJoyStartX = r.left + r.width/2;
+    brJoyStartY = r.top + r.height/2;
+  }
+  function brJoyOnMove(cx, cy){
+    if(!brJoyActive) return;
+    let dx = cx-brJoyStartX, dy = cy-brJoyStartY;
+    const dist = Math.hypot(dx,dy);
+    if(dist > BR_JOY_MAXR){ dx = dx/dist*BR_JOY_MAXR; dy = dy/dist*BR_JOY_MAXR; }
+    brJoystickKnob.style.transform = 'translate('+dx+'px,'+dy+'px)';
+    if(Math.hypot(dx,dy) > 4){ brJoyDir.x = dx/BR_JOY_MAXR; brJoyDir.y = dy/BR_JOY_MAXR; }
+    else { brJoyDir.x = 0; brJoyDir.y = 0; }
+  }
+  function brJoyOnEnd(){
+    brJoyActive = false;
+    brJoystickKnob.style.transform = 'translate(0,0)';
+    brJoyDir.x = 0; brJoyDir.y = 0;
+  }
+  brJoystickBase.addEventListener('touchstart', e=>{ e.preventDefault(); brJoyOnStart(); }, {passive:false});
+  brJoystickBase.addEventListener('touchmove', e=>{ e.preventDefault(); const t=e.touches[0]; brJoyOnMove(t.clientX,t.clientY); }, {passive:false});
+  brJoystickBase.addEventListener('touchend', e=>{ e.preventDefault(); brJoyOnEnd(); }, {passive:false});
+  brJoystickBase.addEventListener('mousedown', e=>{
+    brJoyOnStart();
+    const mm = ev=>brJoyOnMove(ev.clientX, ev.clientY);
+    const mu = ()=>{ brJoyOnEnd(); window.removeEventListener('mousemove',mm); window.removeEventListener('mouseup',mu); };
+    window.addEventListener('mousemove', mm);
+    window.addEventListener('mouseup', mu);
+  });
+
+  function brLaunchProjectile(ownerUid, x, y, dx, dy){
+    const id = ownerUid+'_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+    const ev = {id, ownerUid, x, y, dx, dy, t: Date.now()};
+    brProjectiles.push(Object.assign({}, ev, {bornAt: performance.now()}));
+    brProcessedLaunchIds.add(id);
+    if(brRoomRef){
+      brRoomRef.update({ launches: firebase.firestore.FieldValue.arrayUnion(ev) }).catch(()=>{});
+    }
+  }
+  function brProcessLaunches(launches){
+    launches.forEach(ev=>{
+      if(brProcessedLaunchIds.has(ev.id)) return;
+      brProcessedLaunchIds.add(ev.id);
+      if(ev.ownerUid === userId) return;
+      const ageSec = (Date.now()-ev.t)/1000;
+      if(ageSec > 3) return;
+      brProjectiles.push(Object.assign({}, ev, {bornAt: performance.now()-ageSec*1000}));
+    });
+  }
+
+  brFireBtn.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    if(!brRunning || !brAlive || brAmmo <= 0) return;
+    brAmmo--;
+    brUpdateAmmoBadge();
+    brLaunchProjectile(userId, brMyPos.x, brMyPos.y, brFacing.x, brFacing.y);
+  });
+
+  function brOnSelfHit(){
+    if(!brAlive) return;
+    brAlive = false;
+    if(brRoomRef){
+      brRoomRef.update({['players.'+userId+'.alive']: false}).catch(()=>{});
+    }
+  }
+  function brBotDie(b){
+    if(!b.alive) return;
+    b.alive = false;
+    if(brRoomRef){
+      brRoomRef.update({['players.'+b.uid+'.alive']: false}).catch(()=>{});
+    }
+  }
+
+  function brUpdateProjectiles(now){
+    for(let i=brProjectiles.length-1;i>=0;i--){
+      const p = brProjectiles[i];
+      const age = (now-p.bornAt)/1000;
+      const px = p.x + p.dx*BR_PROJ_SPEED*age;
+      const py = p.y + p.dy*BR_PROJ_SPEED*age;
+      p._cx = px; p._cy = py;
+      if(age > 2.2 || px < -20 || px > BR_ARENA_W+20 || py < -20 || py > BR_ARENA_H+20){
+        brProjectiles.splice(i,1);
+        continue;
+      }
+      if(brAlive && p.ownerUid !== userId){
+        const d = Math.hypot(px-brMyPos.x, py-brMyPos.y);
+        if(d < BR_HIT_RADIUS+BR_PLAYER_RADIUS) brOnSelfHit();
+      }
+      if(brIsHost){
+        brBots.forEach(b=>{
+          if(!b.alive || p.ownerUid === b.uid) return;
+          const d = Math.hypot(px-b.x, py-b.y);
+          if(d < BR_HIT_RADIUS+BR_PLAYER_RADIUS) brBotDie(b);
+        });
+      }
+    }
+  }
+
+  function brAllEntitiesSnapshot(){
+    return Object.keys(brPlayers).map(id=>{
+      const p = brPlayers[id] || {};
+      if(p.isBot){
+        const b = brBots.find(x=>x.uid===id);
+        return {uid:id, name:p.name, alive: b?b.alive:p.alive, x: b?b.x:p.x, y: b?b.y:p.y};
+      }
+      if(id === userId){
+        return {uid:id, name:p.name, alive: brAlive, x: brMyPos.x, y: brMyPos.y};
+      }
+      return {uid:id, name:p.name, alive:p.alive, x:p.x, y:p.y};
+    });
+  }
+
+  function brStartBotAI(){
+    brBots = Object.keys(brPlayers).filter(id=>brPlayers[id].isBot).map(id=>({
+      uid:id, name:brPlayers[id].name,
+      x:brPlayers[id].x, y:brPlayers[id].y,
+      alive:true, fireTimer: Math.random()*1.5
+    }));
+  }
+
+  function brUpdateBots(dt, t){
+    if(!brIsHost) return;
+    const ents = brAllEntitiesSnapshot();
+    brBots.forEach(b=>{
+      if(!b.alive) return;
+      let target=null, bestD=Infinity;
+      ents.forEach(e=>{
+        if(e.uid===b.uid || !e.alive) return;
+        const d = Math.hypot(e.x-b.x, e.y-b.y);
+        if(d<bestD){ bestD=d; target=e; }
+      });
+      if(target){
+        const dx=target.x-b.x, dy=target.y-b.y;
+        const dist=Math.hypot(dx,dy)||1;
+        const nx=dx/dist, ny=dy/dist;
+        if(dist>90){
+          b.x += nx*BR_BOT_SPEED*dt;
+          b.y += ny*BR_BOT_SPEED*dt;
+        } else {
+          b.x += -ny*BR_BOT_SPEED*0.4*dt;
+          b.y += nx*BR_BOT_SPEED*0.4*dt;
+        }
+        b.x = Math.max(14, Math.min(BR_ARENA_W-14, b.x));
+        b.y = Math.max(14, Math.min(BR_ARENA_H-14, b.y));
+        b.fireTimer -= dt;
+        if(b.fireTimer<=0 && dist<230){
+          brLaunchProjectile(b.uid, b.x, b.y, nx, ny);
+          b.fireTimer = 0.8 + Math.random()*0.5;
+        }
+      } else {
+        b.x += Math.sin(t + b.uid.length)*8*dt;
+      }
+    });
+  }
+
+  let brLastFireLaunchesSynced = false;
+  function brSyncMyPos(now){
+    if(!brRoomRef || !brAlive) return;
+    if(now-brLastPosSyncAt < 150) return;
+    brLastPosSyncAt = now;
+    brRoomRef.update({
+      ['players.'+userId+'.x']: Math.round(brMyPos.x),
+      ['players.'+userId+'.y']: Math.round(brMyPos.y)
+    }).catch(()=>{});
+  }
+  function brSyncHostState(now){
+    if(!brIsHost || !brRoomRef) return;
+    if(now-brLastBotSyncAt < 150) return;
+    brLastBotSyncAt = now;
+    const updates = {};
+    brBots.forEach(b=>{
+      updates['players.'+b.uid+'.x'] = Math.round(b.x);
+      updates['players.'+b.uid+'.y'] = Math.round(b.y);
+    });
+    if(Object.keys(updates).length) brRoomRef.update(updates).catch(()=>{});
+  }
+
+  function brCheckWinCondition(){
+    if(brWinnerDeclared) return;
+    const ents = brAllEntitiesSnapshot();
+    const aliveOnes = ents.filter(e=>e.alive);
+    if(aliveOnes.length <= 1){
+      brWinnerDeclared = true;
+      const winner = aliveOnes[0];
+      if(brRoomRef){
+        brRoomRef.update({status:'ended', winnerUid: winner?winner.uid:null, winnerName: winner?(winner.name||'???'):null}).catch(()=>{});
+      }
+    }
+  }
+
+  function brRender(t){
+    const {sx, sy} = brToScreenScale();
+    brCtx.clearRect(0,0,brCanvas.width,brCanvas.height);
+    brCtx.save();
+    brCtx.scale(sx, sy);
+
+    brPickups.forEach(pk=>{
+      if(!brPickupActiveAt(pk, t)) return;
+      if(brGiantIconImg.complete) brCtx.drawImage(brGiantIconImg, pk.x-14, pk.y-14, 28, 28);
+    });
+
+    const ents = brAllEntitiesSnapshot();
+    ents.forEach(e=>{
+      if(!e.alive) return;
+      const p = brPlayers[e.uid];
+      brCtx.beginPath();
+      brCtx.arc(e.x, e.y, 14, 0, Math.PI*2);
+      brCtx.fillStyle = (p&&p.color) || '#ffd23b';
+      brCtx.fill();
+      brCtx.lineWidth = 2;
+      brCtx.strokeStyle = e.uid===userId ? '#fff' : 'rgba(255,255,255,0.6)';
+      brCtx.stroke();
+      brCtx.fillStyle = '#fff';
+      brCtx.font = '11px monospace';
+      brCtx.textAlign = 'center';
+      brCtx.fillText((p&&p.name)||'?', e.x, e.y-20);
+    });
+
+    if(brAlive){
+      const fx=brFacing.x, fy=brFacing.y;
+      brCtx.beginPath();
+      brCtx.moveTo(brMyPos.x+fx*20, brMyPos.y+fy*20);
+      brCtx.lineTo(brMyPos.x+fx*10-fy*6, brMyPos.y+fy*10+fx*6);
+      brCtx.lineTo(brMyPos.x+fx*10+fy*6, brMyPos.y+fy*10-fx*6);
+      brCtx.closePath();
+      brCtx.fillStyle = '#fff';
+      brCtx.fill();
+    }
+
+    brProjectiles.forEach(p=>{
+      if(brGiantIconImg.complete) brCtx.drawImage(brGiantIconImg, p._cx-11, p._cy-11, 22, 22);
+    });
+
+    brCtx.restore();
+
+    const aliveCount = ents.filter(e=>e.alive).length;
+    brAliveCount.textContent = '生存: '+aliveCount;
+  }
+
+  function brStartLoop(){
+    brLastFrameAt = performance.now();
+    function frame(now){
+      if(!brRunning) return;
+      const dt = Math.min(0.05, (now-brLastFrameAt)/1000);
+      brLastFrameAt = now;
+      const t = (now-brMatchStartPerf)/1000;
+
+      if(brAlive){
+        brMyPos.x += brJoyDir.x*BR_MY_SPEED*dt;
+        brMyPos.y += brJoyDir.y*BR_MY_SPEED*dt;
+        brMyPos.x = Math.max(14, Math.min(BR_ARENA_W-14, brMyPos.x));
+        brMyPos.y = Math.max(14, Math.min(BR_ARENA_H-14, brMyPos.y));
+        const jm = Math.hypot(brJoyDir.x, brJoyDir.y);
+        if(jm > 0.15){ brFacing = {x:brJoyDir.x/jm, y:brJoyDir.y/jm}; }
+        brUpdatePickups(t);
+        brSyncMyPos(now);
+      }
+
+      brUpdateProjectiles(now);
+
+      if(brIsHost){
+        brUpdateBots(dt, t);
+        brSyncHostState(now);
+        brCheckWinCondition();
+      }
+
+      brRender(t);
+      brAnimHandle = requestAnimationFrame(frame);
+    }
+    brAnimHandle = requestAnimationFrame(frame);
+  }
+
+  function brStartLocalMatch(d){
+    brRunning = true;
+    brAlive = true;
+    brAmmo = 0;
+    brUpdateAmmoBadge();
+    brWinnerDeclared = false;
+    brProjectiles = [];
+    brPickupLastCycleCollected = {};
+    brMatchStartPerf = performance.now();
+    const me = d.players[userId];
+    brMyPos = me ? {x:me.x, y:me.y} : {x:180, y:320};
+    brBuildPickups(d.seed || 1);
+    showScreen(brGameScreen);
+    brResizeCanvas();
+    brStartLoop();
+    if(brIsHost){ brStartBotAI(); }
+  }
+
+  window.addEventListener('resize', ()=>{ if(brRunning) brResizeCanvas(); });
+
+  function brEndMatchUI(d){
+    brRunning = false;
+    if(brAnimHandle){ cancelAnimationFrame(brAnimHandle); brAnimHandle = null; }
+    const iWon = d.winnerUid === userId;
+    brResultTitle.textContent = iWon ? '勝ち！' : (d.winnerUid ? '負け...' : '決着つかず');
+    brResultBody.innerHTML = d.winnerName ? ('優勝: '+escapeHtml(d.winnerName)) : '';
+    showScreen(brResultScreen);
+    if(brIsHost && brRoomRef){
+      const ref = brRoomRef;
+      setTimeout(()=>{ ref.delete().catch(()=>{}); }, 4000);
+    }
+  }
+
+  brResultHomeBtn.addEventListener('click', ()=>{
+    brLeaveBR();
+    showScreen(startScreen);
+  });
+
+  window.addEventListener('pagehide', ()=>{
+    if(brRunning && brAlive && brRoomRef){
+      brRoomRef.update({['players.'+userId+'.alive']: false}).catch(()=>{});
+    }
+  });
+  // ===========================================================
 })();
 </script>
 </body>
