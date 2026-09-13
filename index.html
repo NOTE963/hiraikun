@@ -104,6 +104,7 @@
   }
   #overScreen, #rankScreen, #vsMenuScreen, #vsWaitScreen, #vsCountdownScreen, #vsResultScreen { display:none; }
   #rankScreen { z-index:85; overflow-y:auto; padding:40px 22px 26px; justify-content:flex-start; }
+  #rankScreen, #rankScreen * { touch-action:pan-y; }
   #vsMenuScreen, #vsWaitScreen, #vsResultScreen { z-index:85; }
   #vsCountdownScreen { z-index:96; background:rgba(0,0,0,0.4); }
 
@@ -130,6 +131,12 @@
 
   #muteBtn {
     position:absolute; top:12px; right:14px; z-index:60;
+    background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.25);
+    color:#eee; font-size:13px; width:30px; height:30px; border-radius:50%;
+    line-height:1; cursor:pointer; pointer-events:auto;
+  }
+  #reloadBtn {
+    position:absolute; top:12px; right:50px; z-index:60;
     background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.25);
     color:#eee; font-size:13px; width:30px; height:30px; border-radius:50%;
     line-height:1; cursor:pointer; pointer-events:auto;
@@ -209,6 +216,7 @@
     <div id="ts">2025.10.18&nbsp;&nbsp;17:42</div>
   </div>
   <button id="muteBtn">🔊</button>
+  <button id="reloadBtn" title="リロード">🔄</button>
   <div id="score">生存タイム: <span id="scoreVal">0.0</span>秒</div>
   <div id="vsStatus" style="display:none;"></div>
 
@@ -359,6 +367,7 @@
 
   // ---------- synthesized ambient BGM ("something approaching") ----------
   const muteBtn = document.getElementById('muteBtn');
+  const reloadBtn = document.getElementById('reloadBtn');
   let audioCtx=null, master=null, droneGain=null, muted=false;
   let nextHeartAt=0, heartInterval=900;
 
@@ -452,6 +461,11 @@
     muted = !muted;
     muteBtn.textContent = muted ? '🔇' : '🔊';
     if(master) master.gain.value = muted?0:0.75;
+  });
+
+  reloadBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    location.reload();
   });
   // -------------------------------------------------------------------
 
@@ -610,6 +624,13 @@
 
   function moveLeft(){ if(!running||gameOver) return; setPlayerLane(laneIdx-1); }
   function moveRight(){ if(!running||gameOver) return; setPlayerLane(laneIdx+1); }
+
+  window.addEventListener('pagehide', ()=>{
+    if(mode==='vs' && running && !myVsDone && roomRef){
+      const field = myRole==='p1' ? {p1Time: elapsed, p1Done: true} : {p2Time: elapsed, p2Done: true};
+      roomRef.update(field).catch(()=>{});
+    }
+  });
 
   window.addEventListener('keydown', (e)=>{
     if(e.code==='ArrowLeft'){ e.preventDefault(); moveLeft(); }
@@ -791,14 +812,30 @@
   let resultShown = false;
   let countdownFired = false;
   let oppDoneGraceScheduled = false;
+  let vsEndReason = null;
+  let presenceTimer = null;
+
+  function startPresenceHeartbeat(){
+    stopPresenceHeartbeat();
+    presenceTimer = setInterval(()=>{
+      if(!roomRef || myVsDone || mode!=='vs' || !running){ stopPresenceHeartbeat(); return; }
+      const field = myRole==='p1' ? 'p1Seen' : 'p2Seen';
+      roomRef.update({[field]: firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+    }, 4000);
+  }
+  function stopPresenceHeartbeat(){
+    if(presenceTimer){ clearInterval(presenceTimer); presenceTimer=null; }
+  }
 
   function resetVsState(){
     myRole=null; roomId=null; oppLaneIdx=1; oppDone=false; oppTime=0;
     myVsDone=false; resultShown=false; countdownFired=false; oppDoneGraceScheduled=false;
+    vsEndReason=null;
     if(roomUnsub){ roomUnsub(); roomUnsub=null; }
     if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; }
     if(randomRetryTimer){ clearInterval(randomRetryTimer); randomRetryTimer=null; }
     stopHostHeartbeat();
+    stopPresenceHeartbeat();
     roomRef = null;
   }
 
@@ -826,7 +863,7 @@
       guest: null, guestName: null,
       seed: seed, status:'waiting', isPublic:false,
       p1Lane:1, p2Lane:1,
-      p1Done:false, p2Done:false, p1Time:0, p2Time:0,
+      p1Done:false, p2Done:false, p1Time:0, p2Time:0, p1Seen:null, p2Seen:null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>{
       vsWaitSub.textContent = 'このルームIDを相手に伝えてください';
@@ -924,7 +961,7 @@
       guest: null, guestName: null,
       seed: seed, status:'waiting', isPublic:true,
       p1Lane:1, p2Lane:1,
-      p1Done:false, p2Done:false, p1Time:0, p2Time:0,
+      p1Done:false, p2Done:false, p1Time:0, p2Time:0, p1Seen:null, p2Seen:null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastSeen: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>{
@@ -1029,6 +1066,19 @@
         updateVsStatusLine();
       }
     }
+
+    // opponent presence check - if they've gone silent mid-match, treat as a
+    // disconnect/leave and end the match rather than waiting forever
+    if(mode==='vs' && running && !myVsDone && countdownFired){
+      const oppSeenField = myRole==='p1' ? 'p2Seen' : 'p1Seen';
+      const seenVal = d[oppSeenField];
+      if(seenVal && typeof seenVal.toMillis === 'function'){
+        const ms = seenVal.toMillis();
+        if(ms > 0 && (Date.now() - ms) > 10000){
+          endVsMatchAsWinner('left');
+        }
+      }
+    }
   }
 
   let roomPollTimer = null;
@@ -1052,20 +1102,23 @@
     });
 
     // polling fallback in case the realtime listener stalls
-    // (network blips, backgrounded tabs, etc.)
+    // (network blips, backgrounded tabs, etc.) - keep polling through
+    // the whole match so opponent-presence timeouts still get checked
     if(roomPollTimer){ clearInterval(roomPollTimer); }
     roomPollTimer = setInterval(()=>{
-      if(!roomRef || countdownFired){ return; }
+      if(!roomRef || resultShown){ clearInterval(roomPollTimer); roomPollTimer=null; return; }
       roomRef.get({source:'server'}).then(doc=>{
         if(doc.exists) handleRoomUpdate(doc.data());
       }).catch(e=>console.error('room poll error', e));
     }, 2500);
   }
 
-  function endVsMatchAsWinner(){
+  function endVsMatchAsWinner(reason){
     running = false; gameOver = true;
     myVsDone = true;
+    vsEndReason = reason || null;
     fadeDrone(0.0001, 0.5);
+    stopPresenceHeartbeat();
     const field = myRole==='p1' ? {p1Time: elapsed, p1Done:true} : {p2Time: elapsed, p2Done:true};
     if(roomRef) roomRef.update(field).catch(e=>console.error(e));
   }
@@ -1129,10 +1182,12 @@
     setPlayerLane(1);
     running = true;
     fadeDrone(0.05, 1.2);
+    startPresenceHeartbeat();
   }
 
   function handleVsFinish(){
     myVsDone = true;
+    stopPresenceHeartbeat();
     const field = myRole==='p1' ? {p1Time: elapsed, p1Done: true} : {p2Time: elapsed, p2Done: true};
     if(roomRef) roomRef.update(field).catch(e=>console.error(e));
     setTimeout(()=>{
@@ -1160,6 +1215,7 @@
     if(Math.abs(diff) < 0.3) resultText = '引き分け';
     else if(diff > 0) resultText = '勝ち！';
     else resultText = '負け...';
+    if(vsEndReason==='left' && diff > 0) resultText = '勝ち！(相手が退出)';
     vsResultTitle.textContent = resultText;
     vsResultBody.innerHTML =
       escapeHtml(myName) + ': ' + formatTime(myTime) + '秒<br>' +
