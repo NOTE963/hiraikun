@@ -990,7 +990,8 @@
       } else {
         vsResultTitle.textContent = '結果待ち';
         vsResultBody.innerHTML = 'あなたの生存タイム: ' + formatTime(elapsed) + '秒<br>対戦相手の結果を待っています...';
-        vsResultHomeBtn.style.display = 'none';
+        vsResultHomeBtn.textContent = 'ホームへ戻る(対戦中止)';
+        vsResultHomeBtn.style.display = 'inline-block';
         showScreen(vsResultScreen);
       }
     }, 650);
@@ -1011,6 +1012,7 @@
     vsResultBody.innerHTML =
       escapeHtml(myName) + ': ' + formatTime(myTime) + '秒<br>' +
       escapeHtml(otherName) + ': ' + formatTime(otherTime) + '秒';
+    vsResultHomeBtn.textContent = 'ホームへ';
     vsResultHomeBtn.style.display = 'inline-block';
     showScreen(vsResultScreen);
 
@@ -1021,10 +1023,14 @@
   }
 
   vsResultHomeBtn.addEventListener('click', ()=>{
+    if(!resultShown && roomRef && myRole==='p1'){
+      roomRef.delete().catch(()=>{});
+    }
     running=false; gameOver=true;
     mode='solo'; rng=Math.random;
     playerOpp.style.display='none';
     vsStatus.style.display='none';
+    resetVsState();
     showScreen(startScreen);
   });
 
