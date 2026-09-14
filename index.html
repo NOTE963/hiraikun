@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>飛来くん - VHS DODGE</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
@@ -147,14 +147,9 @@
   .rkProj { position:absolute; width:34px; height:auto; margin-left:-17px; margin-top:-38px; filter:brightness(0.65) contrast(1.15); pointer-events:none; }
   #rkHud {
     position:absolute; top:14px; left:0; right:0; text-align:center;
-    z-index:6; pointer-events:none; display:flex; justify-content:space-around; align-items:center; gap:20px; padding:0 20px;
+    z-index:6; pointer-events:none; display:flex; justify-content:center; gap:26px;
   }
-  .rkHpContainer {
-    display:flex; flex-direction:column; align-items:center; gap:4px;
-    background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.2);
-  }
-  .rkHpLabel { font-size:11px; color:#aaa; text-transform:uppercase; letter-spacing:1px; }
-  .rkHearts { font-size:18px; letter-spacing:4px; text-shadow:0 0 4px rgba(0,0,0,0.9); font-weight:bold; }
+  .rkHearts { font-size:16px; letter-spacing:3px; text-shadow:0 0 4px rgba(0,0,0,0.9); }
   #rkFireHint {
     position:absolute; top:6px; right:10px; font-size:10px; color:rgba(255,255,255,0.55);
     z-index:6; pointer-events:none;
@@ -370,14 +365,8 @@
     <div id="rkOppDot"></div>
     <div id="rkMyDot"></div>
     <div id="rkHud">
-      <div class="rkHpContainer">
-        <div class="rkHpLabel">相手</div>
-        <div class="rkHearts" id="rkOppHearts">🔴🔴</div>
-      </div>
-      <div class="rkHpContainer">
-        <div class="rkHpLabel">自分</div>
-        <div class="rkHearts" id="rkMyHearts">🔴🔴</div>
-      </div>
+      <div class="rkHearts" id="rkOppHearts">🔴🔴</div>
+      <div class="rkHearts" id="rkMyHearts">🔴🔴</div>
     </div>
     <div id="rkFireHint">上タップで発射 / 下でレーン移動</div>
   </div>
@@ -613,7 +602,7 @@
     setTimeout(()=>{ if(rankStatus.textContent==='ユーザーネームを保存しました') rankStatus.textContent=''; }, 1500);
   });
 
-   function formatTime(sec){
+ function formatTime(sec){
     return sec.toFixed(1);
   }
 
@@ -660,14 +649,9 @@
         }
         rankStatus.textContent = '';
         const rows = [];
-        const seenIds = new Set();
-        snap.forEach(doc=>{
-          if(seenIds.has(doc.id)) return;
-          seenIds.add(doc.id);
-          rows.push(Object.assign({id:doc.id}, doc.data()));
-        });
+        snap.forEach(doc=>rows.push(Object.assign({id:doc.id}, doc.data())));
         rows.sort((a,b)=> (Number(b.time)||0) - (Number(a.time)||0));
-        const top = rows.slice(0,30);
+        const top = rows.slice(0,15);
         const seasonKey = rkSeasonKey(new Date());
         const rpFetches = top.map(r=>db.collection('rank_progress').doc(seasonKey+'_'+r.id).get().catch(()=>null));
         Promise.all(rpFetches).then(rpDocs=>{
@@ -1491,7 +1475,7 @@
   function rkSeasonKey(d){
     const epoch = Date.UTC(2025,0,1);
     const days = Math.floor((d.getTime()-epoch)/86400000);
-    return 'S'+Math.floor(days/30);
+    return 'S'+Math.floor(days/14);
   }
 
   let rkMyRP = 0;
@@ -1529,7 +1513,6 @@
   let rkPresenceTimer=null, rkHeartbeatTimer=null, rkRetryTimer=null;
   let rkAnimHandle=null;
   let rkWaitDotN=0;
-  let rkIsBot=false, rkBotDifficulty=0, rkBotLastFireAt=0, rkBotLaneChangeTimer=null;
 
   function rkLeave(){
     rkRunning=false;
@@ -1538,11 +1521,9 @@
     if(rkPresenceTimer){ clearInterval(rkPresenceTimer); rkPresenceTimer=null; }
     if(rkHeartbeatTimer){ clearInterval(rkHeartbeatTimer); rkHeartbeatTimer=null; }
     if(rkRetryTimer){ clearInterval(rkRetryTimer); rkRetryTimer=null; }
-    if(rkBotLaneChangeTimer){ clearInterval(rkBotLaneChangeTimer); rkBotLaneChangeTimer=null; }
     rkRoomRef=null; rkRoomId=null; rkMyRole=null; rkOppUid=null;
     rkCountdownFired=false; rkResultShown=false;
     rkMyHits=0; rkOppHits=0; rkMyLane=1; rkOppLane=1;
-    rkIsBot=false; rkBotDifficulty=0; rkBotLastFireAt=0;
     rkProjectiles.forEach(p=>{ const el=document.getElementById('proj_'+p.id); if(el) el.remove(); });
     rkProjectiles=[]; rkProcessedLaunchIds=new Set();
   }
@@ -1609,12 +1590,7 @@
       let tries=0;
       rkRetryTimer = setInterval(()=>{
         tries++;
-        if(tries>5 || rkCountdownFired){ 
-          clearInterval(rkRetryTimer); rkRetryTimer=null; 
-          if(!rkCountdownFired) rkStartBotMatch();
-          return; 
-        }
-        if(!db) return;
+        if(tries>5 || rkCountdownFired){ clearInterval(rkRetryTimer); rkRetryTimer=null; return; }
         db.collection('rank_rooms').where('status','==','waiting').limit(8).get().then(snap=>{
           const others = rkFreshCandidateIds(snap, rkRoomId);
           if(others.length>0 && !rkCountdownFired){
@@ -1628,17 +1604,6 @@
         }).catch(()=>{});
       }, 3000);
     }).catch(e=>{ console.error(e); rkMenuStatus.textContent='マッチングに失敗しました'; });
-  }
-
-  function rkStartBotMatch(){
-    rkIsBot = true;
-    const info = rkRankInfo(rkMyRP);
-    rkBotDifficulty = Math.min(4, Math.floor(info.idx / 5) + 1);
-    rkOppUid = 'bot_' + rkBotDifficulty;
-    rkStopHeartbeat();
-    if(rkRoomRef) rkRoomRef.delete().catch(()=>{});
-    rkCountdownFired = true;
-    rkStartCountdown(0);
   }
 
   function rkStartHostHeartbeat(){
@@ -1844,59 +1809,26 @@
     showScreen(rkGameScreen);
     rkRenderMyLane(); rkRenderOppLane();
     rkStartPresenceHeartbeat();
-    if(rkIsBot) rkStartBotAI();
     function frame(now){
       if(!rkRunning) return;
       rkUpdateProjectiles(now);
-      if(rkIsBot) rkUpdateBotAI(now);
       rkAnimHandle = requestAnimationFrame(frame);
     }
     rkAnimHandle = requestAnimationFrame(frame);
-  }
-
-  function rkStartBotAI(){
-    rkBotLastFireAt = 0;
-    if(rkBotLaneChangeTimer) clearInterval(rkBotLaneChangeTimer);
-    rkBotLaneChangeTimer = setInterval(()=>{
-      if(!rkRunning) return;
-      rkOppLane = Math.floor(Math.random() * LANES.length);
-      rkRenderOppLane();
-    }, 800 - rkBotDifficulty * 150);
-  }
-
-  function rkUpdateBotAI(now){
-    if(!rkRunning || !rkIsBot) return;
-    const fireIntervals = [2800, 2200, 1600, 1000, 600];
-    const interval = fireIntervals[Math.min(4, rkBotDifficulty - 1)];
-    if(now - rkBotLastFireAt > interval){
-      rkBotLastFireAt = now;
-      const incomingProjectiles = rkProjectiles.filter(p=>p.forMe && Math.abs(p.lane - rkMyLane) < 0.5);
-      if(Math.random() < (0.3 + rkBotDifficulty * 0.15) || incomingProjectiles.length > 0){
-        const id = 'bot_'+Date.now()+'_'+Math.floor(Math.random()*1000);
-        rkProjectiles.push({id, ownerUid:'bot', lane:rkOppLane, bornAt:now, forMe:false});
-        rkSpawnProjEl(id, rkOppLane, false);
-      }
-    }
   }
 
   function rkShowResult(won){
     rkRunning = false;
     if(rkAnimHandle){ cancelAnimationFrame(rkAnimHandle); rkAnimHandle=null; }
     if(rkPresenceTimer){ clearInterval(rkPresenceTimer); rkPresenceTimer=null; }
-    let delta = won ? RK_WIN_RP : RK_LOSE_RP;
-    if(rkIsBot){
-      const botMultiplier = 0.5 + rkBotDifficulty * 0.1;
-      delta = Math.round(delta * botMultiplier);
-      if(won && rkBotDifficulty >= 3) delta = Math.round(delta * 1.2);
-    }
+    const delta = won ? RK_WIN_RP : RK_LOSE_RP;
     const newRP = Math.max(0, rkMyRP+delta);
     rkSaveMyRP(newRP);
     const info = rkRankInfo(newRP);
     rkResultTitle.textContent = won ? '勝ち！' : '負け...';
     rkSetIconEl(rkResultIconImg, info.idx, 110);
     rkResultRankName.textContent = info.name;
-    const botLabel = rkIsBot ? ' (ボット難易度'+rkBotDifficulty+')' : '';
-    rkResultRPChange.innerHTML = (delta>=0?'+':'')+delta+' RP (合計 '+newRP+' RP)' + botLabel;
+    rkResultRPChange.innerHTML = (delta>=0?'+':'')+delta+' RP (合計 '+newRP+' RP)';
     rkResultRPChange.style.color = won ? '#5fdc7a' : '#ff6a4d';
     showScreen(rkResultScreen);
     if(rkMyRole==='p1' && rkRoomRef){
