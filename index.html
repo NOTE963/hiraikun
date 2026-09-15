@@ -1580,7 +1580,7 @@
 
   const RK_FIRE_COOLDOWN = 550;
   const RK_TRAVEL_MS = 550;
-  const RK_WIN_RP = 14, RK_LOSE_RP = -16;
+  const RK_WIN_RP = 20, RK_LOSE_RP = -25;
   const RK_BOT_NAMES = ['謎のbot','影の刺客','霧の中の誰か','木陰のbot','足音だけの相手','名もなき追跡者'];
 
   // ---- rank tier table (matches the reference image: Bronze-Diamond have IV..I, then 4 single top tiers) ----
@@ -1595,7 +1595,7 @@
   function rkThresholdForIndex(i){
     if(i<=0) return 0;
     if(i<20) return i*160;
-    return [3200,3840,4480,5120][i-20];
+    return [320,360,440,640][i-20];
   }
   function rkRankIndexForRP(rp){
     let idx=0;
