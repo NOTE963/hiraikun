@@ -158,6 +158,7 @@
   .rkHpLabel {
     font-size:11px; letter-spacing:1px; color:rgba(255,255,255,0.75);
     text-shadow:0 0 4px rgba(0,0,0,0.9);
+    max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .rkHearts { font-size:18px; letter-spacing:4px; text-shadow:0 0 4px rgba(0,0,0,0.9); }
   #rkFireHint {
@@ -374,7 +375,7 @@
     <div id="rkProjLayer"></div>
     <div id="rkOppDot"></div>
     <div id="rkMyDot"></div>
-    <div id="rkOppHud"><span class="rkHpLabel">相手</span><span class="rkHearts" id="rkOppHearts">●●</span></div>
+    <div id="rkOppHud"><span class="rkHpLabel" id="rkOppNameLabel">相手</span><span class="rkHearts" id="rkOppHearts">●●</span></div>
     <div id="rkMyHud"><span class="rkHpLabel">あなた</span><span class="rkHearts" id="rkMyHearts">●●</span></div>
     <div id="rkFireHint">上タップで発射 / 下でレーン移動</div>
   </div>
@@ -919,13 +920,14 @@
     return s;
   }
 
-  let myRole = null;      // 'p1' | 'p2'
+ let myRole = null;      // 'p1' | 'p2'
   let roomId = null;
   let roomRef = null;
   let roomUnsub = null;
   let oppLaneIdx = 1;
   let lastRoomData = null;
   let oppDone = false, oppTime = 0;
+  let oppName = '';
   let myVsDone = false;
   let resultShown = false;
   let countdownFired = false;
@@ -950,7 +952,7 @@
   function resetVsState(){
     myRole=null; roomId=null; oppLaneIdx=1; oppDone=false; oppTime=0;
     myVsDone=false; resultShown=false; countdownFired=false; oppDoneGraceScheduled=false;
-    vsEndReason=null;
+    vsEndReason=null; oppName='';
     if(roomUnsub){ roomUnsub(); roomUnsub=null; }
     if(roomPollTimer){ clearInterval(roomPollTimer); roomPollTimer=null; }
     if(randomRetryTimer){ clearInterval(randomRetryTimer); randomRetryTimer=null; }
@@ -999,7 +1001,7 @@
   let heartbeatTimer = null;
   const PRESENCE_TIMEOUT_MS = 15000;
 
-   function extractFreshCandidateIds(snap, excludeId){
+  function extractFreshCandidateIds(snap, excludeId){
     const now = Date.now();
     const ids = [];
     snap.forEach(doc=>{
@@ -1145,6 +1147,11 @@
 
   function handleRoomUpdate(d){
     lastRoomData = d;
+    const oppNameFromDoc = myRole==='p1' ? d.guestName : d.hostName;
+    if(oppNameFromDoc && oppNameFromDoc !== oppName){
+      oppName = oppNameFromDoc;
+      updateVsStatusLine();
+    }
     // opponent lane sync
     const oppField = myRole==='p1' ? 'p2Lane' : 'p1Lane';
     if(typeof d[oppField] === 'number'){
@@ -1253,10 +1260,11 @@
 
   function updateVsStatusLine(){
     if(mode!=='vs') return;
+    const label = oppName || '相手';
     if(oppDone){
-      vsStatus.textContent = '相手: 脱落 (' + formatTime(oppTime) + '秒)';
+      vsStatus.textContent = label + ': 脱落 (' + formatTime(oppTime) + '秒)';
     } else {
-      vsStatus.textContent = '相手: 生存中';
+      vsStatus.textContent = label + ': 生存中';
     }
   }
 
@@ -1441,6 +1449,7 @@
   }
   const rkMyHeartsEl = document.getElementById('rkMyHearts');
   const rkOppHeartsEl = document.getElementById('rkOppHearts');
+  const rkOppNameLabel = document.getElementById('rkOppNameLabel');
   const rkResultScreen = document.getElementById('rkResultScreen');
   const rkResultTitle = document.getElementById('rkResultTitle');
   const rkResultIconImg = document.getElementById('rkResultIconImg');
@@ -1454,6 +1463,7 @@
   const RK_FIRE_COOLDOWN = 550;
   const RK_TRAVEL_MS = 550;
   const RK_WIN_RP = 25, RK_LOSE_RP = -15;
+  const RK_BOT_NAMES = ['謎のbot','影の刺客','霧の中の誰か','木陰のbot','足音だけの相手','名もなき追跡者'];
 
   // ---- rank tier table (matches the reference image: Bronze-Diamond have IV..I, then 4 single top tiers) ----
   const RK_TIERS = (function(){
@@ -1520,7 +1530,7 @@
   }
 
   // ---- state ----
-  let rkRoomRef=null, rkRoomUnsub=null, rkRoomId=null, rkMyRole=null, rkOppUid=null;
+  let rkRoomRef=null, rkRoomUnsub=null, rkRoomId=null, rkMyRole=null, rkOppUid=null, rkOppName='';
   let rkCountdownFired=false, rkRunning=false, rkResultShown=false;
   let rkMyLane=1, rkOppLane=1;
   let rkMyHits=0, rkOppHits=0;
@@ -1543,7 +1553,7 @@
     if(rkBotFallbackTimer){ clearTimeout(rkBotFallbackTimer); rkBotFallbackTimer=null; }
     if(rkBotActionTimer){ clearInterval(rkBotActionTimer); rkBotActionTimer=null; }
     rkVsBot=false;
-    rkRoomRef=null; rkRoomId=null; rkMyRole=null; rkOppUid=null;
+    rkRoomRef=null; rkRoomId=null; rkMyRole=null; rkOppUid=null; rkOppName=''; rkUpdateOppLabel();
     rkCountdownFired=false; rkResultShown=false;
     rkMyHits=0; rkOppHits=0; rkMyLane=1; rkOppLane=1;
     rkProjectiles.forEach(p=>{ const el=document.getElementById('proj_'+p.id); if(el) el.remove(); });
@@ -1673,6 +1683,11 @@
 
   function rkHandleUpdate(d){
     if(!rkOppUid && d.p1 && d.p2){ rkOppUid = rkMyRole==='p1' ? d.p2 : d.p1; }
+    const oppNameFromDoc = rkMyRole==='p1' ? d.p2Name : d.p1Name;
+    if(oppNameFromDoc && oppNameFromDoc !== rkOppName){
+      rkOppName = oppNameFromDoc;
+      rkUpdateOppLabel();
+    }
 
     const oppLaneField = rkMyRole==='p1' ? 'p2Lane' : 'p1Lane';
     if(typeof d[oppLaneField]==='number'){
@@ -1733,6 +1748,8 @@
     rkVsBot = true;
     rkMyRole = 'p1';
     rkOppUid = 'bot';
+    rkOppName = RK_BOT_NAMES[Math.floor(Math.random()*RK_BOT_NAMES.length)];
+    rkUpdateOppLabel();
     showScreen(null);
     rkWaitScreen.style.display='none';
     rkCountdownScreen.style.display='flex';
@@ -1746,13 +1763,26 @@
     }, 700);
   }
 
+  function rkBotDifficulty(){
+    // scales with the player's current rank: higher rank = faster, more accurate bot
+    const idx = rkRankIndexForRP(rkMyRP); // 0 (bronze IV) .. 23 (overlord)
+    const t = idx / (RK_TIERS.length-1); // 0..1
+    return {
+      interval: Math.round(820 - t*420),   // 820ms at bronze -> ~400ms at overlord
+      aimChance: 0.55 + t*0.35,            // 0.55 -> 0.90
+      wanderChance: 0.5 - t*0.3            // 0.5 -> 0.2 (less random, more focused at high rank)
+    };
+  }
+
   function rkBotAction(){
     if(!rkRunning || !rkVsBot || rkResultShown) return;
+    const diff = rkBotDifficulty();
     // fairly strong: often snaps onto the player's current lane right before firing
-    // (a well-aimed shot), otherwise repositions somewhat randomly.
-    if(Math.random() < 0.55){
+    // (a well-aimed shot), otherwise repositions somewhat randomly. Both the aim
+    // accuracy and the fire rate get tougher as the player's rank climbs.
+    if(Math.random() < diff.aimChance){
       rkOppLane = rkMyLane;
-    } else if(Math.random() < 0.5){
+    } else if(Math.random() < diff.wanderChance){
       rkOppLane = Math.floor(Math.random()*LANES.length);
     }
     rkRenderOppLane();
@@ -1761,6 +1791,9 @@
     rkSpawnProjEl(id, rkOppLane, true);
   }
 
+  function rkUpdateOppLabel(){
+    rkOppNameLabel.textContent = rkOppName || '相手';
+  }
   function rkRenderMyLane(){ rkMyDot.style.left = LANES[rkMyLane]+'%'; }
   function rkRenderOppLane(){ rkOppDot.style.left = LANES[rkOppLane]+'%'; }
   function rkPipsHtml(hits, color){
@@ -1895,7 +1928,7 @@
     rkRenderMyLane(); rkRenderOppLane();
     if(rkVsBot){
       if(rkBotActionTimer) clearInterval(rkBotActionTimer);
-      rkBotActionTimer = setInterval(rkBotAction, 820);
+      rkBotActionTimer = setInterval(rkBotAction, rkBotDifficulty().interval);
     } else {
       rkStartPresenceHeartbeat();
     }
