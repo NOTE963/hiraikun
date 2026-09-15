@@ -1594,8 +1594,8 @@
   })();
   function rkThresholdForIndex(i){
     if(i<=0) return 0;
-    if(i<20) return i*160;
-    return [320,360,440,640][i-20];
+    if(i<20) return i*100;
+    return [180,220,280,380][i-20];
   }
   function rkRankIndexForRP(rp){
     let idx=0;
